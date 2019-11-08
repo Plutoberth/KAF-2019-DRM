@@ -31,7 +31,7 @@ VectoredHandlerTest(
 	struct _EXCEPTION_POINTERS* ExceptionInfo
 )
 {
-	std::cout << "exception handler\n";
+	puts("In exception handler...");
 	ExceptionInfo->ContextRecord->Eip++;
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
@@ -58,20 +58,21 @@ volatile int weirdDivByZero()
 //Idea: VM with exception codes
 
 
+
+
 int main()
 {
 	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
 	//ExitDebug();
-	std::cout << "Test!" << std::endl;
-
+	puts("Test!");
 	//BeingDebuggedSoftwareBreakpoint();
 	
 	//Send to an OS function to make sure that the function isn't going to be omitted.
 	SetLastError(weirdDivByZero());
 	
 
-	  
-	std::cout << "Test2!" << std::endl;
+	puts("Test2!\n");
+	
 	char _ = getchar();
 	return 0;
 }
