@@ -16,7 +16,10 @@ VOID NTAPI test_tls_callback(
 	//TODO: Check if process is being debugged and if any windows are open, then decode accordingly (wrong values for debugging).
 	if (Reason == DLL_PROCESS_ATTACH)
 	{
-		ExitDebugSimple();
+		if (IsDebuggerPresent())
+		{
+			killProgram();
+		}
 	}
 }
 

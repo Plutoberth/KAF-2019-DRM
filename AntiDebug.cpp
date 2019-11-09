@@ -1,17 +1,5 @@
 #include "AntiDebug.h"
 
-void killProgram()
-{
-	void (*killme)(void) = 0;
-	__asm __volatile
-	{
-		rdtsc
-		xor eax, edx
-		mov killme, eax
-	}
-	killme();
-}
-
 void BeingDebuggedSoftwareBreakpoint()
 {
 	__try
