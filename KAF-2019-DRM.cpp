@@ -1,33 +1,9 @@
 #include <iostream>
 #include "windows.h"
 #include <emmintrin.h>
+#include "TLSCallback.h"
 #include "AntiDebug.h"
 
-
-#define CALL_FIRST 1
-#define CALL_LAST 0 
-
-VOID NTAPI test_tls_callback(
-	PVOID DllHandle,
-	DWORD Reason,
-	PVOID Reserved)
-{
-	
-	//TODO: Check if process is being debugged and if any windows are open, then decode accordingly (wrong values for debugging).
-	if (Reason == DLL_PROCESS_ATTACH)
-	{
-		if (IsDebuggerPresent())
-		{
-			killProgram();
-		}
-	}
-}
-
-#pragma comment (linker, "/INCLUDE:__tls_used")
-#pragma comment (linker, "/INCLUDE:_p_tls_callback1")
-#pragma data_seg(push)
-#pragma data_seg(".CRT$XLAAA")
-EXTERN_C PIMAGE_TLS_CALLBACK p_tls_callback1 = test_tls_callback;
 
 LONG WINAPI
 VectoredHandlerTest(
@@ -36,8 +12,11 @@ VectoredHandlerTest(
 {
 	puts("In exception handler...");
 	ExceptionInfo->ContextRecord->Eip++;
+	
 	return EXCEPTION_CONTINUE_EXECUTION;
 }
+
+
 
 
 //A weird divide by zero function with SSE instructions for "obfuscation".
@@ -57,7 +36,7 @@ volatile int weirdDivByZero()
 //add exception handler for divide by zero for obfuscation
 //add important code in exception handler
 //add tls callback to decode resource
-
+//Idea: replace IsDebuggerPresent with a 'stealthier' function, perhaps access PEB directly
 //Idea: VM with exception codes
 
 
@@ -65,6 +44,13 @@ volatile int weirdDivByZero()
 
 int main()
 {
+	if (IsDebuggerPresent())
+	{
+		//Extremely simple red herring for anti debugging
+		puts("DON'T DEBUG ME!!!!");
+		void (*killme)(void) = reinterpret_cast<void (*)(void)>(0x1337);
+		killme();
+	}
 	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
 	//ExitDebug();
 	puts("Test!");
