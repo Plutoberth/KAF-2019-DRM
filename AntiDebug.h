@@ -14,9 +14,11 @@ __forceinline void killProgram()
 	__asm __volatile
 	{
 		rdtsc 
+		mov ebx, eax
 		xor eax, edx
 		mov killme, eax
 		rdtsc
+		sub eax, ebx
 		xor eax, edx
 	}
 	killme();
