@@ -3,6 +3,7 @@
 #include "stdio.h"
 #include "utils.h"
 #include "Psapi.h"
+#include "Winver.h"
 #include <iostream>
 #include <unordered_set>
 
@@ -31,7 +32,8 @@ constexpr static std::size_t debuggerHashes[]{
 	"x96dbg"_hash,
 	"ida64"_hash,
 	"idaq"_hash,
-	"idaq64"_hash
+	"idaq64"_hash,
+	"OLLYDBG"_hash
 };
 
 inline BOOL CALLBACK EnumWindowsAntiDebug(
@@ -43,28 +45,54 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 	GetWindowThreadProcessId(hwnd, &procId);
 
 	HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, procId);
-	int a = GetLastError();
 
 	if (h != 0)
 	{
-		CHAR buffer[MAX_PATH] = { 0 };
+		WCHAR buffer[MAX_PATH] = { 0 };
 
-		if (GetModuleFileNameExA(h, 0, buffer, sizeof(buffer) - 1))
+		if (GetModuleFileNameExW(h, 0, buffer, sizeof(buffer) - 1))
 		{
-			CHAR filename[MAX_PATH] = { 0 };
-			if (_splitpath_s(buffer, NULL, NULL, NULL, NULL, filename, sizeof(filename), NULL, NULL) == 0)
+			DWORD trash = 0;
+			DWORD fileVersionSize = GetFileVersionInfoSizeW(buffer, &trash);
+			if (fileVersionSize > 0 && fileVersionSize < 8192)
 			{
-				size_t hash = str_hash(filename, strlen(filename));
-				for (size_t i = 0; i < sizeof(debuggerHashes); i++)
+				VOID* fileVersionInfoBuf = alloca(fileVersionSize);
+				if (GetFileVersionInfoW(buffer, 0, fileVersionSize, fileVersionInfoBuf))
 				{
-					if (debuggerHashes[i] == hash)
+					CHAR* fileDescription = NULL;
+					UINT fileDescriptionLength = 0;
+					
+					if (VerQueryValueA(
+						fileVersionInfoBuf,
+						"\\StringFileInfo\\0c004e9f\\FileDescription",
+						(LPVOID*)&fileDescription,
+						&fileDescriptionLength))
 					{
-						BOOL* isDebugged = reinterpret_cast<BOOL*>(lParam);
-						*isDebugged = TRUE;
-						return FALSE;
+						size_t hash = str_hash(fileDescription, fileDescriptionLength);
+						for (size_t i = 0; i < sizeof(debuggerHashes); i++)
+						{
+							if (debuggerHashes[i] == hash)
+							{
+								BOOL* isDebugged = reinterpret_cast<BOOL*>(lParam);
+								*isDebugged = TRUE;
+								return FALSE;
+							}
+						}
 					}
+					else {
+						int a = GetLastError();
+						wchar_t buf[256];
+						FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+							NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+							buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
+						std::wcout << buf << std::endl;
+					}
+					
+					
+
 				}
 			}
+		
 		}
 		CloseHandle(h);
 	}
