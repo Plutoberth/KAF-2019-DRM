@@ -26,3 +26,8 @@ constexpr static std::size_t str_hash(const char* str,
 	const std::size_t value = hash_offset) noexcept {
 	return *str ? str_hash(str + 1, (value ^ static_cast<std::size_t>(*str))* hash_prime) : value;
 }
+
+constexpr std::size_t operator"" _hash(char const* s, std::size_t count)
+{
+	return str_hash(s, count);
+}
