@@ -3,7 +3,7 @@
 #include <emmintrin.h>
 #include "TLSCallback.h"
 #include "AntiDebug.h"
-
+#include "VirtualMachine.h"
 
 LONG WINAPI
 VectoredHandlerTest(
@@ -33,19 +33,37 @@ volatile int weirdDivByZero()
 }
 
 
-//add exception handler for divide by zero for obfuscation
 //add important code in exception handler
-//add tls callback to decode resource
 //Idea: replace IsDebuggerPresent with a 'stealthier' function, perhaps access PEB directly
-//Idea: VM with exception codes
+
+//Opcode: 1 byte
+//Other stuff: depends on opcode
+
+void runVmCode(const char* opcodes, unsigned int len) 
+{
+	while (opcodes < opcodes + len)
+	{
+		Opcode opcode = Opcode(*opcodes);
+		opcodes++; //Move to next opcode or next instruction
+		switch (opcode)
+		{
+		case Opcode::DIV_BY_ZERO:
+			weirdDivByZero();
+			break;
 
 
 
+		default:
+			//Some default handler for opcodes
+			break;
+		}
+	}
+}
 
 int main()
 {
 	std::cout << "no debuggers probs? " << isDebugged << std::endl;
-	return 0;
+	
 	if (IsDebuggerPresent())
 	{
 		//Extremely simple red herring for anti debugging
@@ -53,16 +71,9 @@ int main()
 		exit(1337);
 	}
 	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
-	//ExitDebug();
-	puts("Test!");
-	//BeingDebuggedSoftwareBreakpoint();
 	
 	//Send to an OS function to make sure that the function isn't going to be omitted.
 	SetLastError(weirdDivByZero());
 	
-
-	puts("Test2!\n");
-	
-	char _ = getchar();
 	return 0;
 }

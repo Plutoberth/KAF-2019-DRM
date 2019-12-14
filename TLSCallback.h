@@ -21,7 +21,7 @@ VOID NTAPI test_tls_callback(
 	EnumWindows(&EnumWindowsAntiDebug, reinterpret_cast<LPARAM>(&isDebugged));
 	if (isDebugged)
 	{
-		killProgram();
+		//Code for switching opcodes
 	}
 }
 
