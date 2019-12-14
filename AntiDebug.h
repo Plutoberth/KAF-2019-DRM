@@ -4,6 +4,7 @@
 #include "utils.h"
 #include "Psapi.h"
 #include "Winver.h"
+#include "Strsafe.h"
 #include <iostream>
 #include <unordered_set>
 
@@ -27,13 +28,9 @@ __forceinline void killProgram()
 
 
 constexpr static std::size_t debuggerHashes[]{
-	"x32dbg"_hash,
+	"OllyDbg, 32-bit analysing debugger"_hash,
 	"x64dbg"_hash,
-	"x96dbg"_hash,
-	"ida64"_hash,
-	"idaq"_hash,
-	"idaq64"_hash,
-	"OLLYDBG"_hash
+	"The Interactive Disassembler"_hash
 };
 
 inline BOOL CALLBACK EnumWindowsAntiDebug(
@@ -48,51 +45,62 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 
 	if (h != 0)
 	{
-		WCHAR buffer[MAX_PATH] = { 0 };
+		WCHAR filePath[MAX_PATH] = { 0 };
 
-		if (GetModuleFileNameExW(h, 0, buffer, sizeof(buffer) - 1))
+		if (GetModuleFileNameExW(h, 0, filePath, sizeof(filePath) - 1))
 		{
 			DWORD trash = 0;
-			DWORD fileVersionSize = GetFileVersionInfoSizeW(buffer, &trash);
+			DWORD fileVersionSize = GetFileVersionInfoSizeW(filePath, &trash);
 			if (fileVersionSize > 0 && fileVersionSize < 8192)
 			{
 				VOID* fileVersionInfoBuf = alloca(fileVersionSize);
-				if (GetFileVersionInfoW(buffer, 0, fileVersionSize, fileVersionInfoBuf))
+				if (GetFileVersionInfoW(filePath, 0, fileVersionSize, fileVersionInfoBuf))
 				{
 					CHAR* fileDescription = NULL;
 					UINT fileDescriptionLength = 0;
-					
-					if (VerQueryValueA(
-						fileVersionInfoBuf,
-						"\\StringFileInfo\\0c004e9f\\FileDescription",
-						(LPVOID*)&fileDescription,
-						&fileDescriptionLength))
+
+					struct LANGANDCODEPAGE {
+						WORD wLanguage;
+						WORD wCodePage;
+					} *lpTranslate;
+
+					// Read the list of languages and code pages.
+					UINT cbTranslate = 0;
+					if (VerQueryValue(fileVersionInfoBuf,
+						TEXT("\\VarFileInfo\\Translation"),
+						(LPVOID*)&lpTranslate,
+						&cbTranslate))
 					{
-						size_t hash = str_hash(fileDescription, fileDescriptionLength);
-						for (size_t i = 0; i < sizeof(debuggerHashes); i++)
+						// Read the file description for each language and code page.
+
+						for (int i = 0; i < (cbTranslate / sizeof(struct LANGANDCODEPAGE)); i++)
 						{
-							if (debuggerHashes[i] == hash)
+							CHAR SubBlock[51] = { 0 };
+							//040904b0 (UTF-16 | en-US should work for most)
+							snprintf(SubBlock, 50, "\\StringFileInfo\\%04x%04x\\FileDescription", lpTranslate[i].wLanguage, lpTranslate[i].wCodePage);
+
+							if (VerQueryValueA(
+								fileVersionInfoBuf,
+								SubBlock,
+								(LPVOID*)&fileDescription,
+								&fileDescriptionLength))
 							{
-								BOOL* isDebugged = reinterpret_cast<BOOL*>(lParam);
-								*isDebugged = TRUE;
-								return FALSE;
+								size_t hash = str_hash(fileDescription, strlen(fileDescription));
+								
+								for (size_t i = 0; i < sizeof(debuggerHashes); i++)
+								{
+									if (debuggerHashes[i] == hash && hash != 0)
+									{
+										BOOL* isDebugged = reinterpret_cast<BOOL*>(lParam);
+										*isDebugged = TRUE;
+										return FALSE;
+									}
+								}
 							}
 						}
 					}
-					else {
-						int a = GetLastError();
-						wchar_t buf[256];
-						FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-							NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-							buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
-						std::wcout << buf << std::endl;
-					}
-					
-					
-
 				}
 			}
-		
 		}
 		CloseHandle(h);
 	}
