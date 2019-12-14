@@ -5,6 +5,8 @@
 #define CALL_FIRST 1
 #define CALL_LAST 0 
 
+BOOL isDebugged = FALSE;
+
 VOID NTAPI test_tls_callback(
 	PVOID DllHandle,
 	DWORD Reason,
@@ -14,15 +16,13 @@ VOID NTAPI test_tls_callback(
 	{
 		return;
 	}
+
 	
-	//TODO: Check if process is being debugged and if any windows are open, then decode accordingly (wrong values for debugging).
-	
-	
-	if (IsDebuggerPresent())
+	EnumWindows(&EnumWindowsAntiDebug, reinterpret_cast<LPARAM>(&isDebugged));
+	if (isDebugged)
 	{
 		killProgram();
 	}
-	
 }
 
 #pragma comment (linker, "/INCLUDE:__tls_used")

@@ -8,6 +8,11 @@
 #include <iostream>
 #include <unordered_set>
 
+typedef struct TranslationIdentifier {
+	WORD wLanguage;
+	WORD wCodePage;
+} TranslationIdentifier;
+
 // Implement in header file because TLS callbacks can't call functions in a different TU, apparently.
 __forceinline void killProgram()
 {
@@ -29,6 +34,7 @@ __forceinline void killProgram()
 
 constexpr static std::size_t debuggerHashes[]{
 	"OllyDbg, 32-bit analysing debugger"_hash,
+	"Immunity Debugger, 32-bit analysing debugger"_hash,
 	"x64dbg"_hash,
 	"The Interactive Disassembler"_hash
 };
@@ -39,53 +45,52 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 ) {
 	DWORD procId = 0;
 
+	//!!!! WINAPI BLOAT AHEAD !!!!
+
 	GetWindowThreadProcessId(hwnd, &procId);
 
-	HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, procId);
+	HANDLE procHandle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, procId);
 
-	if (h != 0)
+	if (procHandle != 0)
 	{
-		WCHAR filePath[MAX_PATH] = { 0 };
+		WCHAR procPath[MAX_PATH] = { 0 };
 
-		if (GetModuleFileNameExW(h, 0, filePath, sizeof(filePath) - 1))
+		if (GetModuleFileNameExW(procHandle, 0, procPath, sizeof(procPath) - 1))
 		{
 			DWORD trash = 0;
-			DWORD fileVersionSize = GetFileVersionInfoSizeW(filePath, &trash);
+			DWORD fileVersionSize = GetFileVersionInfoSizeW(procPath, &trash);
 			if (fileVersionSize > 0 && fileVersionSize < 8192)
 			{
+				//Fetch file version info data
 				VOID* fileVersionInfoBuf = alloca(fileVersionSize);
-				if (GetFileVersionInfoW(filePath, 0, fileVersionSize, fileVersionInfoBuf))
+				if (GetFileVersionInfoW(procPath, 0, fileVersionSize, fileVersionInfoBuf))
 				{
-					CHAR* fileDescription = NULL;
-					UINT fileDescriptionLength = 0;
-
-					struct LANGANDCODEPAGE {
-						WORD wLanguage;
-						WORD wCodePage;
-					} *lpTranslate;
+					TranslationIdentifier *lpTranslate;
 
 					// Read the list of languages and code pages.
-					UINT cbTranslate = 0;
+					UINT numTranslations = 0;
 					if (VerQueryValue(fileVersionInfoBuf,
 						TEXT("\\VarFileInfo\\Translation"),
 						(LPVOID*)&lpTranslate,
-						&cbTranslate))
+						&numTranslations))
 					{
 						// Read the file description for each language and code page.
-
-						for (int i = 0; i < (cbTranslate / sizeof(struct LANGANDCODEPAGE)); i++)
+						for (int i = 0; i < (numTranslations / sizeof(TranslationIdentifier)); i++)
 						{
-							CHAR SubBlock[51] = { 0 };
-							//040904b0 (UTF-16 | en-US should work for most)
-							snprintf(SubBlock, 50, "\\StringFileInfo\\%04x%04x\\FileDescription", lpTranslate[i].wLanguage, lpTranslate[i].wCodePage);
+							CHAR* fileDescription = NULL;
+							UINT fileDescriptionLength = 0;
+							CHAR FileDescBlock[51] = { 0 };
+							//040904b0 (UTF-16 | en-US) should work for most
+							snprintf(FileDescBlock, 50, "\\StringFileInfo\\%04x%04x\\FileDescription", lpTranslate[i].wLanguage, lpTranslate[i].wCodePage);
 
 							if (VerQueryValueA(
 								fileVersionInfoBuf,
-								SubBlock,
+								FileDescBlock,
 								(LPVOID*)&fileDescription,
 								&fileDescriptionLength))
 							{
-								size_t hash = str_hash(fileDescription, strlen(fileDescription));
+								//fileDescriptionLength from VerQueryValueA includes null terminator
+								size_t hash = str_hash(fileDescription, fileDescriptionLength - 1);
 								
 								for (size_t i = 0; i < sizeof(debuggerHashes); i++)
 								{
@@ -93,7 +98,7 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 									{
 										BOOL* isDebugged = reinterpret_cast<BOOL*>(lParam);
 										*isDebugged = TRUE;
-										return FALSE;
+										return FALSE; //Stop enuming windows
 									}
 								}
 							}
@@ -102,11 +107,10 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 				}
 			}
 		}
-		CloseHandle(h);
+		CloseHandle(procHandle);
 	}
 
 	return TRUE;
 }
-
 
 __forceinline void BeingDebuggedSoftwareBreakpoint();

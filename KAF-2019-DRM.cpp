@@ -44,12 +44,13 @@ volatile int weirdDivByZero()
 
 int main()
 {
+	std::cout << "no debuggers probs? " << isDebugged << std::endl;
+	return 0;
 	if (IsDebuggerPresent())
 	{
 		//Extremely simple red herring for anti debugging
 		puts("DON'T DEBUG ME!!!!");
-		void (*killme)(void) = reinterpret_cast<void (*)(void)>(0x1337);
-		killme();
+		exit(1337);
 	}
 	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
 	//ExitDebug();
