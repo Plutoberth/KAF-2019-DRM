@@ -1,6 +1,6 @@
 #include "AntiDebug.h"
 
-void BeingDebuggedSoftwareBreakpoint()
+void beingDebuggedSoftwareBreakpoint()
 {
 	__try
 	{
@@ -18,3 +18,4 @@ void BeingDebuggedSoftwareBreakpoint()
 
 	killProgram();
 }
+

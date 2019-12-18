@@ -34,7 +34,6 @@ volatile int weirdDivByZero()
 
 
 //add important code in exception handler
-//Idea: replace IsDebuggerPresent with a 'stealthier' function, perhaps access PEB directly
 
 //Opcode: 1 byte
 //Other stuff: depends on opcode
@@ -62,8 +61,8 @@ void runVmCode(const char* opcodes, unsigned int len)
 
 int main()
 {
-	std::cout << "no debuggers probs? " << isDebugged << std::endl;
-	
+	//std::cout << "no debuggers probs? " << isDebugged << std::endl;
+	std::cout << "peb: " << beingDebuggedPeb() << std::endl;
 	if (IsDebuggerPresent())
 	{
 		//Extremely simple red herring for anti debugging

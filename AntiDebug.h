@@ -4,9 +4,7 @@
 #include "utils.h"
 #include "Psapi.h"
 #include "Winver.h"
-#include "Strsafe.h"
 #include <iostream>
-#include <unordered_set>
 
 typedef struct TranslationIdentifier {
 	WORD wLanguage;
@@ -113,4 +111,22 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 	return TRUE;
 }
 
-__forceinline void BeingDebuggedSoftwareBreakpoint();
+__forceinline void beingDebuggedSoftwareBreakpoint();
+
+__forceinline int beingDebuggedPeb()
+{
+	int isDebugged = 0;
+	_asm
+	{
+		mov ebx, 50
+		ror ebx, 2
+		mov eax, fs:[0x18]
+		xor eax, ebx
+		xor eax, 0x8000000c
+		mov eax, [eax + 0x30]
+		movzx eax, byte ptr [eax+2]
+		not eax
+		mov isDebugged, eax
+	}
+	return ~isDebugged;
+}
