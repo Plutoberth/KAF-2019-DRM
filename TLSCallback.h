@@ -14,7 +14,7 @@ VOID NTAPI test_tls_callback(
 		return;
 	}
 
-#ifndef DEBUG
+#ifndef _DEBUG
 	EnumWindows(&EnumWindowsAntiDebug, reinterpret_cast<LPARAM>(&isDebugged));
 	if (isDebugged)
 	{
