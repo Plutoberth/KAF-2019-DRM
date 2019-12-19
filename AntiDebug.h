@@ -115,6 +115,10 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 
 __forceinline int beingDebuggedSoftwareBreakpoint()
 {
+#ifdef _DEBUG
+	return 0;
+#endif // _DEBUG
+
 	__try
 	{
 		__asm
