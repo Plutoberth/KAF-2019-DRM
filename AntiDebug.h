@@ -34,7 +34,9 @@ constexpr static std::size_t debuggerHashes[]{
 	"OllyDbg, 32-bit analysing debugger"_hash,
 	"Immunity Debugger, 32-bit analysing debugger"_hash,
 	"x64dbg"_hash,
-	"The Interactive Disassembler"_hash
+	"The Interactive Disassembler"_hash,
+	"Sysinternals Process Explorer"_hash,
+	"Process Monitor"_hash
 };
 
 inline BOOL CALLBACK EnumWindowsAntiDebug(

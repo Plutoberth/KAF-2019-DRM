@@ -10,6 +10,7 @@ VectoredHandlerTest(
 	struct _EXCEPTION_POINTERS* ExceptionInfo
 )
 {
+	
 	puts("In exception handler...");
 	ExceptionInfo->ContextRecord->Eip++;
 	
@@ -20,7 +21,7 @@ VectoredHandlerTest(
 
 
 //A weird divide by zero function with SSE instructions for "obfuscation".
-volatile int weirdDivByZero()
+__forceinline volatile int weirdDivByZero()
 {
 	__m128d xmm0 = _mm_setr_pd(0xdeadbeef8badf00d, 0x0);
 	__m128d xmm1 = _mm_setr_pd(0x0, 0x0);
@@ -61,6 +62,7 @@ void runVmCode(const char* opcodes, unsigned int len)
 
 int main()
 {
+#ifndef _DEBUG
 	//std::cout << "no debuggers probs? " << isDebugged << std::endl;
 	std::cout << "peb: " << beingDebuggedPeb() << std::endl;
 	if (IsDebuggerPresent())
@@ -69,6 +71,7 @@ int main()
 		puts("DON'T DEBUG ME!!!!");
 		exit(1337);
 	}
+#endif
 	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
 	
 	//Send to an OS function to make sure that the function isn't going to be omitted.

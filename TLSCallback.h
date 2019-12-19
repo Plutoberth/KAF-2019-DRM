@@ -17,12 +17,13 @@ VOID NTAPI test_tls_callback(
 		return;
 	}
 
-	
+#ifndef DEBUG
 	EnumWindows(&EnumWindowsAntiDebug, reinterpret_cast<LPARAM>(&isDebugged));
 	if (isDebugged)
 	{
 		//Code for switching opcodes
 	}
+#endif // !DEBUG
 }
 
 #pragma comment (linker, "/INCLUDE:__tls_used")
