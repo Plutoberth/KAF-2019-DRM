@@ -2,9 +2,6 @@
 #include "windows.h"
 #include "AntiDebug.h"
 
-#define CALL_FIRST 1
-#define CALL_LAST 0 
-
 BOOL isDebugged = FALSE;
 
 VOID NTAPI test_tls_callback(

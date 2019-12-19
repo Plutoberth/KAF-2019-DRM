@@ -5,66 +5,10 @@
 #include "AntiDebug.h"
 #include "VirtualMachine.h"
 
-LONG WINAPI
-VectoredHandlerTest(
-	struct _EXCEPTION_POINTERS* ExceptionInfo
-)
-{
-	
-	puts("In exception handler...");
-	ExceptionInfo->ContextRecord->Eip++;
-	
-	return EXCEPTION_CONTINUE_EXECUTION;
-}
-
-
-
-
-//A weird divide by zero function with SSE instructions for "obfuscation".
-__forceinline volatile int weirdDivByZero()
-{
-	__m128d xmm0 = _mm_setr_pd(0xdeadbeef8badf00d, 0x0);
-	__m128d xmm1 = _mm_setr_pd(0x0, 0x0);
-	xmm0 = _mm_div_pd(xmm0, xmm1);
-
-	int g = (int)xmm0.m128d_f64[0];
-	int c = xmm0.m128d_f64[1];
-	g += c;
-	return c / g;
-}
-
-
-//add important code in exception handler
-
-//Opcode: 1 byte
-//Other stuff: depends on opcode
-
-void runVmCode(const char* opcodes, unsigned int len) 
-{
-	while (opcodes < opcodes + len)
-	{
-		Opcode opcode = Opcode(*opcodes);
-		opcodes++; //Move to next opcode or next instruction
-		switch (opcode)
-		{
-		case Opcode::DIV_BY_ZERO:
-			weirdDivByZero();
-			break;
-
-
-
-		default:
-			//Some default handler for opcodes
-			break;
-		}
-	}
-}
 
 int main()
 {
 #ifndef _DEBUG
-	//std::cout << "no debuggers probs? " << isDebugged << std::endl;
-	std::cout << "peb: " << beingDebuggedPeb() << std::endl;
 	if (IsDebuggerPresent())
 	{
 		//Extremely simple red herring for anti debugging
@@ -72,10 +16,9 @@ int main()
 		exit(1337);
 	}
 #endif
-	AddVectoredExceptionHandler(CALL_FIRST, &VectoredHandlerTest);
-	
-	//Send to an OS function to make sure that the function isn't going to be omitted.
-	SetLastError(weirdDivByZero());
-	
+	unsigned char opcodes[] = {static_cast<unsigned char>(Opcode::PRIV_INSTRUCTION_CMP_REG_REG), 0x02, 0x1};
+	std::cout << "Welcome to the DRM challenge. Please enter your flag to win: " << GetLastError();
+	runVmCode(opcodes, sizeof(opcodes));
+
 	return 0;
 }
