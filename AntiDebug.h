@@ -113,11 +113,32 @@ inline BOOL CALLBACK EnumWindowsAntiDebug(
 	return TRUE;
 }
 
-__forceinline void beingDebuggedSoftwareBreakpoint();
+__forceinline int beingDebuggedSoftwareBreakpoint()
+{
+	__try
+	{
+		__asm
+		{
+			int 2dh; Basically behaves the same as 0xcc
+		}
+	}
+	__except (GetExceptionCode() == EXCEPTION_BREAKPOINT ?
+		EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH)
+	{
+		return 0;
+	}
+
+	return 1;
+}
 
 __forceinline int beingDebuggedPeb()
 {
+#ifdef _DEBUG
+	return 0;
+#endif
+
 	int isDebugged = 0;
+
 	_asm
 	{
 		mov ebx, 50
