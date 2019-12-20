@@ -36,6 +36,7 @@ constexpr static std::size_t debuggerHashes[]{
 	"x64dbg"_hash,
 	"The Interactive Disassembler"_hash,
 	"Sysinternals Process Explorer"_hash,
+	"Sysinternals Procmon"_hash,
 	"Process Monitor"_hash
 };
 

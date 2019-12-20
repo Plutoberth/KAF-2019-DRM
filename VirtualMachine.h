@@ -33,11 +33,10 @@ DivZeroHandler(
 	struct _EXCEPTION_POINTERS* ExceptionInfo
 )
 {
-	bool shouldRun = beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0);
+	bool shouldRun = !(beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0));
 #ifdef _DEBUG
 	shouldRun = true;
 #endif
-
 	if (shouldRun)
 	{
 		if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_INT_DIVIDE_BY_ZERO 
@@ -60,33 +59,11 @@ DivZeroHandler(
 }
 
 LONG WINAPI
-InvalidHandleHandler(
-	struct _EXCEPTION_POINTERS* ExceptionInfo
-)
-{
-	bool shouldRun = beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0);
-
-#ifdef _DEBUG
-	shouldRun = true;
-#endif
-	if (shouldRun)
-	{
-		if (ExceptionInfo->ExceptionRecord->ExceptionCode == EXCEPTION_INVALID_HANDLE)
-		{
-			R[2] = str_hash((const char*)(&R[2]), sizeof(R[2]));
-			return EXCEPTION_CONTINUE_EXECUTION;
-		}
-	}
-
-	return EXCEPTION_CONTINUE_SEARCH;
-}
-
-LONG WINAPI
 PrivInstructionHandler(
 	struct _EXCEPTION_POINTERS* ExceptionInfo
 )
 {
-	bool shouldRun = beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0);
+	bool shouldRun = !(beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0));
 
 #ifdef _DEBUG
 	shouldRun = true;
@@ -119,7 +96,7 @@ IlegalInstructionHandler(
 	struct _EXCEPTION_POINTERS* ExceptionInfo
 )
 {
-	bool shouldRun = beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0);
+	bool shouldRun = !(beingDebuggedPeb() || ((ExceptionInfo->ContextRecord->Dr7 & DR7_CONTROL_MASK) != 0));
 
 #ifdef _DEBUG
 	shouldRun = true;
@@ -210,14 +187,17 @@ __forceinline static volatile void closeInvalidHandle()
 
 	HANDLE fileHandle = CreateFile(L"maybeFlag", GENERIC_READ, 0, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	//Cast to float for weird errors
-	float fileHandleFloat = static_cast<float>(reinterpret_cast<int>(fileHandle)) + 0.1234324234;
+	float fileHandleFloat = static_cast<float>(reinterpret_cast<int>(fileHandle)) + 1337.1337;
 	float* fileHandleFloatPtr = &fileHandleFloat;
 
 	DWORD fileSize = GetFileSize(fileHandle, &fileSize);
 	void* buf = _malloca(fileSize);
 	ReadFile(fileHandle, buf, fileSize, &dwBytesRead, NULL);
+	
 	fileHandle = *(reinterpret_cast<HANDLE*>(fileHandleFloatPtr));
-	CloseHandle(fileHandle);
+	R[2] = str_hash((const char*)(&R[2]), sizeof(R[2]));
+	
+	CloseHandle(reinterpret_cast<HANDLE>(0x1337));
 }
 
 __forceinline static volatile void privInstruction(const unsigned char** opcodes)
@@ -286,7 +266,7 @@ __forceinline static volatile void doBreakpoint(const unsigned char** opcodes)
 int runVmCode(const unsigned char* opcodes, unsigned int len)
 {
 	flagOk = 1;
-	const PVECTORED_EXCEPTION_HANDLER handlers[] = { &DivZeroHandler, &InvalidHandleHandler, &PrivInstructionHandler, &IlegalInstructionHandler, &BreakpointHandler };
+	const PVECTORED_EXCEPTION_HANDLER handlers[] = { &DivZeroHandler, &PrivInstructionHandler, &IlegalInstructionHandler, &BreakpointHandler };
 	auto opcodesEnd = opcodes + len;
 
 	//Final beingDebugged check before killing our ability to do so (by adding the handler)
@@ -294,13 +274,10 @@ int runVmCode(const unsigned char* opcodes, unsigned int len)
 	{
 		killProgram();
 	}
-	
 	AddVectoredExceptionHandler(CALL_FIRST, &DivZeroHandler);
-	AddVectoredExceptionHandler(CALL_FIRST, &InvalidHandleHandler);
 	AddVectoredExceptionHandler(CALL_FIRST, &PrivInstructionHandler);
 	AddVectoredExceptionHandler(CALL_FIRST, &IlegalInstructionHandler);
 	AddVectoredExceptionHandler(CALL_FIRST, &BreakpointHandler);
-
 	while (opcodes < opcodesEnd)
 	{
 		Opcode opcode = Opcode(*opcodes);
@@ -339,10 +316,9 @@ int runVmCode(const unsigned char* opcodes, unsigned int len)
 			break;
 		}
 	}
-
 	if (flagOk)
 	{
-		std::cout << std::endl << "Congratulations!" << std::endl;
+		std::cout << std::endl << "Congratulations, you solved my challenge!" << std::endl;
 	}
 	else
 	{
